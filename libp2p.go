@@ -2,48 +2,37 @@ package libp2p
 
 import (
 	"context"
-	"crypto/rand"
 	"fmt"
+
+	config "github.com/libp2p/go-libp2p/config"
 
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	host "github.com/libp2p/go-libp2p-host"
 	pnet "github.com/libp2p/go-libp2p-interface-pnet"
 	metrics "github.com/libp2p/go-libp2p-metrics"
-	peer "github.com/libp2p/go-libp2p-peer"
 	pstore "github.com/libp2p/go-libp2p-peerstore"
-	swarm "github.com/libp2p/go-libp2p-swarm"
-	transport "github.com/libp2p/go-libp2p-transport"
-	bhost "github.com/libp2p/go-libp2p/p2p/host/basic"
-	mux "github.com/libp2p/go-stream-muxer"
+	secio "github.com/libp2p/go-libp2p-secio"
 	ma "github.com/multiformats/go-multiaddr"
 	mplex "github.com/whyrusleeping/go-smux-multiplex"
-	msmux "github.com/whyrusleeping/go-smux-multistream"
 	yamux "github.com/whyrusleeping/go-smux-yamux"
 )
 
-// Config describes a set of settings for a libp2p node
-type Config struct {
-	Transports   []transport.Transport
-	Muxer        mux.Transport
-	ListenAddrs  []ma.Multiaddr
-	PeerKey      crypto.PrivKey
-	Peerstore    pstore.Peerstore
-	Protector    pnet.Protector
-	Reporter     metrics.Reporter
-	DisableSecio bool
-}
+type Option func(cfg *config.Config) error
 
-type Option func(cfg *Config) error
-
-func Transports(tpts ...transport.Transport) Option {
-	return func(cfg *Config) error {
-		cfg.Transports = append(cfg.Transports, tpts...)
+// Chain chains multiple options into a single option.
+func ChainOptions(opts ...Option) Option {
+	return func(cfg *config.Config) error {
+		for _, opt := range opts {
+			if err := opt(cfg); err != nil {
+				return err
+			}
+		}
 		return nil
 	}
 }
 
 func ListenAddrStrings(s ...string) Option {
-	return func(cfg *Config) error {
+	return func(cfg *config.Config) error {
 		for _, addrstr := range s {
 			a, err := ma.NewMultiaddr(addrstr)
 			if err != nil {
@@ -56,55 +45,62 @@ func ListenAddrStrings(s ...string) Option {
 }
 
 func ListenAddrs(addrs ...ma.Multiaddr) Option {
-	return func(cfg *Config) error {
+	return func(cfg *config.Config) error {
 		cfg.ListenAddrs = append(cfg.ListenAddrs, addrs...)
 		return nil
 	}
 }
 
-type transportEncOpt int
+var DefaultSecurity Option = Security(secio.ID, secio.New)
 
-const (
-	EncPlaintext = transportEncOpt(0)
-	EncSecio     = transportEncOpt(1)
-)
+var NoSecurity Option = func(cfg *config.Config) error {
+	if len(cfg.SecurityTransports) > 0 {
+		return fmt.Errorf("cannot use security transports with an insecure libp2p configuration")
+	}
+	cfg.Insecure = true
+	return nil
+}
 
-func TransportEncryption(tenc ...transportEncOpt) Option {
-	return func(cfg *Config) error {
-		if len(tenc) != 1 {
-			return fmt.Errorf("can only specify a single transport encryption option right now")
+func Security(name string, tpt interface{}) Option {
+	return func(cfg *config.Config) error {
+		if cfg.Insecure {
+			return fmt.Errorf("cannot use security transports with an insecure libp2p configuration")
 		}
-
-		// TODO: actually make this pluggable, otherwise tls will get tricky
-		switch tenc[0] {
-		case EncPlaintext:
-			cfg.DisableSecio = true
-		case EncSecio:
-			// noop
-		default:
-			return fmt.Errorf("unrecognized transport encryption option: %d", tenc[0])
+		stpt, err := config.SecurityConstructor(tpt)
+		if err == nil {
+			cfg.SecurityTransports = append(cfg.SecurityTransports, config.MsSecC{stpt, name})
 		}
-		return nil
+		return err
 	}
 }
 
-func NoEncryption() Option {
-	return TransportEncryption(EncPlaintext)
+var DefaultMuxer Option = ChainOptions(
+	Muxer("/yamux/1.0.0", yamux.DefaultTransport),
+	Muxer("/mplex/6.3.0", mplex.DefaultTransport),
+)
+
+func Muxer(name string, tpt interface{}) Option {
+	return func(cfg *config.Config) error {
+		mtpt, err := config.MuxerConstructor(tpt)
+		if err == nil {
+			cfg.Muxers = append(cfg.Muxers, config.MsMuxC{mtpt, name})
+		}
+		return err
+	}
 }
 
-func Muxer(m mux.Transport) Option {
-	return func(cfg *Config) error {
-		if cfg.Muxer != nil {
-			return fmt.Errorf("cannot specify multiple muxer options")
+func Transport(tpt interface{}) Option {
+	return func(cfg *config.Config) error {
+		tptc, err := config.TransportConstructor(tpt)
+		if err == nil {
+			cfg.Transports = append(cfg.Transports, tptc)
 		}
-
-		cfg.Muxer = m
-		return nil
+		return err
 	}
 }
 
 func Peerstore(ps pstore.Peerstore) Option {
-	return func(cfg *Config) error {
+	return func(cfg *config.Config) error {
 		if cfg.Peerstore != nil {
 			return fmt.Errorf("cannot specify multiple peerstore options")
 		}
@@ -115,7 +111,7 @@ func Peerstore(ps pstore.Peerstore) Option {
 }
 
 func PrivateNetwork(prot pnet.Protector) Option {
-	return func(cfg *Config) error {
+	return func(cfg *config.Config) error {
 		if cfg.Protector != nil {
 			return fmt.Errorf("cannot specify multiple private network options")
 		}
@@ -126,7 +122,7 @@ func PrivateNetwork(prot pnet.Protector) Option {
 }
 
 func BandwidthReporter(rep metrics.Reporter) Option {
-	return func(cfg *Config) error {
+	return func(cfg *config.Config) error {
 		if cfg.Reporter != nil {
 			return fmt.Errorf("cannot specify multiple bandwidth reporter options")
 		}
@@ -137,7 +133,7 @@ func BandwidthReporter(rep metrics.Reporter) Option {
 }
 
 func Identity(sk crypto.PrivKey) Option {
-	return func(cfg *Config) error {
+	return func(cfg *config.Config) error {
 		if cfg.PeerKey != nil {
 			return fmt.Errorf("cannot specify multiple identities")
 		}
@@ -148,80 +144,12 @@ func Identity(sk crypto.PrivKey) Option {
 }
 
 func New(ctx context.Context, opts ...Option) (host.Host, error) {
-	var cfg Config
+	var cfg config.Config
 	for _, opt := range opts {
 		if err := opt(&cfg); err != nil {
 			return nil, err
 		}
 	}
 
-	return newWithCfg(ctx, &cfg)
-}
-
-func newWithCfg(ctx context.Context, cfg *Config) (host.Host, error) {
-	// If no key was given, generate a random 2048 bit RSA key
-	if cfg.PeerKey == nil {
-		priv, _, err := crypto.GenerateKeyPairWithReader(crypto.RSA, 2048, rand.Reader)
-		if err != nil {
-			return nil, err
-		}
-		cfg.PeerKey = priv
-	}
-
-	// Obtain Peer ID from public key
-	pid, err := peer.IDFromPublicKey(cfg.PeerKey.GetPublic())
-	if err != nil {
-		return nil, err
-	}
-
-	// Create a new blank peerstore if none was passed in
-	ps := cfg.Peerstore
-	if ps == nil {
-		ps = pstore.NewPeerstore()
-	}
-
-	// Set default muxer if none was passed in
-	muxer := cfg.Muxer
-	if muxer == nil {
-		muxer = DefaultMuxer()
-	}
-
-	// If secio is disabled, don't add our private key to the peerstore
-	if !cfg.DisableSecio {
-		ps.AddPrivKey(pid, cfg.PeerKey)
-		ps.AddPubKey(pid, cfg.PeerKey.GetPublic())
-	}
-
-	swrm, err := swarm.NewSwarmWithProtector(ctx, cfg.ListenAddrs, pid, ps, cfg.Protector, muxer, cfg.Reporter)
-	if err != nil {
-		return nil, err
-	}
-
-	netw := (*swarm.Network)(swrm)
-
-	return bhost.New(netw), nil
-}
-
-func DefaultMuxer() mux.Transport {
-	// Set up stream multiplexer
-	tpt := msmux.NewBlankTransport()
-
-	// By default, support yamux and multiplex
-	tpt.AddTransport("/yamux/1.0.0", yamux.DefaultTransport)
-	tpt.AddTransport("/mplex/6.3.0", mplex.DefaultTransport)
-
-	return tpt
-}
-
-func Defaults(cfg *Config) error {
-	// Create a multiaddress that listens on a random port on all interfaces
-	addr, err := ma.NewMultiaddr("/ip4/0.0.0.0/tcp/0")
-	if err != nil {
-		return err
-	}
-
-	cfg.ListenAddrs = []ma.Multiaddr{addr}
-	cfg.Peerstore = pstore.NewPeerstore()
-	cfg.Muxer = DefaultMuxer()
-	return nil
+	return cfg.NewNode(ctx)
 }

@@ -13,8 +13,6 @@ import (
 	ic "github.com/libp2p/go-libp2p-crypto"
 	host "github.com/libp2p/go-libp2p-host"
 	lgbl "github.com/libp2p/go-libp2p-loggables"
-	metrics "github.com/libp2p/go-libp2p-metrics"
-	mstream "github.com/libp2p/go-libp2p-metrics/stream"
 	inet "github.com/libp2p/go-libp2p-net"
 	peer "github.com/libp2p/go-libp2p-peer"
 	pstore "github.com/libp2p/go-libp2p-peerstore"
@@ -44,7 +42,6 @@ var ClientVersion = "go-libp2p/3.3.4"
 type IDService struct {
 	Host host.Host
 
-	Reporter metrics.Reporter
 	// connections undergoing identification
 	// for wait purposes
 	currid map[inet.Conn]chan struct{}
@@ -99,10 +96,6 @@ func (ids *IDService) IdentifyConn(c inet.Conn) {
 
 	s.SetProtocol(ID)
 
-	if ids.Reporter != nil {
-		s = mstream.WrapStream(s, ids.Reporter)
-	}
-
 	// ok give the response to our handler.
 	if err := msmux.SelectProtoOrFail(ID, s); err != nil {
 		log.Event(context.TODO(), "IdentifyOpenFailed", c.RemotePeer(), logging.Metadata{"error": err})
@@ -125,10 +118,6 @@ func (ids *IDService) IdentifyConn(c inet.Conn) {
 func (ids *IDService) RequestHandler(s inet.Stream) {
 	defer s.Close()
 	c := s.Conn()
-
-	if ids.Reporter != nil {
-		s = mstream.WrapStream(s, ids.Reporter)
-	}
 
 	w := ggio.NewDelimitedWriter(s)
 	mes := pb.Identify{}
