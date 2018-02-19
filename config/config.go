@@ -34,7 +34,11 @@ type Config struct {
 }
 
 // NewNode constructs a new libp2p Host based from the Config.
-func (cfg *Config) NewNode(ctx context.Context) (host.Host, error) {
+func (cfg *Config) NewNode() (host.Host, error) {
+	// Don't make this configurable, we need to remove it anyways:
+	// https://github.com/libp2p/go-libp2p-swarm/issues/59
+	ctx := context.Background()
+
 	// If no key was given, generate a random 2048 bit RSA key
 	privKey := cfg.PeerKey
 	if cfg.PeerKey == nil {

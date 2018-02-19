@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"crypto/rand"
 	"fmt"
 
@@ -10,15 +9,12 @@ import (
 )
 
 func main() {
-	// The context governs the lifetime of the libp2p node
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	// To construct a simple host with all the default settings, just use `New`
-	h, err := libp2p.New(ctx)
+	h, err := libp2p.New()
 	if err != nil {
 		panic(err)
 	}
+	defer h.Close()
 
 	fmt.Printf("Hello World, my hosts ID is %s\n", h.ID())
 
@@ -31,7 +27,7 @@ func main() {
 		panic(err)
 	}
 
-	h2, err := libp2p.New(ctx,
+	h2, err := libp2p.New(
 		// Use your own created keypair
 		libp2p.Identity(priv),
 
@@ -42,6 +38,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	defer h.Close()
 
 	fmt.Printf("Hello World, my second hosts ID is %s\n", h2.ID())
 }

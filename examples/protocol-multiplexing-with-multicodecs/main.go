@@ -76,7 +76,7 @@ var conversationMsgs = []string{
 }
 
 func makeRandomHost(port int) host.Host {
-	h, err := libp2p.New(context.Background(), libp2p.ListenAddrStrings(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", port)))
+	h, err := libp2p.New(libp2p.ListenAddrStrings(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", port)))
 	if err != nil {
 		panic(err)
 	}
@@ -91,7 +91,9 @@ func main() {
 
 	// Make 2 hosts
 	h1 := makeRandomHost(port1)
+	defer h1.Close()
 	h2 := makeRandomHost(port2)
+	defer h2.Close()
 	h1.Peerstore().AddAddrs(h2.ID(), h2.Addrs(), ps.PermanentAddrTTL)
 	h2.Peerstore().AddAddrs(h1.ID(), h1.Addrs(), ps.PermanentAddrTTL)
 

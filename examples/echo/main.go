@@ -52,7 +52,7 @@ func makeBasicHost(listenPort int, secio bool, randseed int64) (host.Host, error
 		opts = append(opts, libp2p.NoSecurity)
 	}
 
-	basicHost, err := libp2p.New(context.Background(), opts...)
+	basicHost, err := libp2p.New(opts...)
 	if err != nil {
 		return nil, err
 	}

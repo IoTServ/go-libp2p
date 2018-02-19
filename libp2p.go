@@ -1,7 +1,6 @@
 package libp2p
 
 import (
-	"context"
 	"fmt"
 
 	config "github.com/libp2p/go-libp2p/config"
@@ -202,9 +201,7 @@ func Identity(sk crypto.PrivKey) Option {
 }
 
 // New constructs a new libp2p node with the given options.
-//
-// Canceling the passed context will stop the returned libp2p node.
-func New(ctx context.Context, opts ...Option) (host.Host, error) {
+func New(opts ...Option) (host.Host, error) {
 	var cfg config.Config
 	for _, opt := range opts {
 		if err := opt(&cfg); err != nil {
@@ -212,5 +209,5 @@ func New(ctx context.Context, opts ...Option) (host.Host, error) {
 		}
 	}
 
-	return cfg.NewNode(ctx)
+	return cfg.NewNode()
 }

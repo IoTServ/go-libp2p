@@ -99,8 +99,9 @@ type HostOpts struct {
 }
 
 // NewHost constructs a new *BasicHost and activates it by attaching its stream and connection handlers to the given inet.Network.
-func NewHost(ctx context.Context, net inet.Network, opts *HostOpts) (*BasicHost, error) {
-	ctx, cancel := context.WithCancel(ctx)
+//
+// Ignore the context parameter. It isn't used for anything.
+func NewHost(_ context.Context, net inet.Network, opts *HostOpts) (*BasicHost, error) {
 	h := &BasicHost{
 		network:    net,
 		mux:        msmux.NewMultistreamMuxer(),
@@ -113,7 +114,6 @@ func NewHost(ctx context.Context, net inet.Network, opts *HostOpts) (*BasicHost,
 		if h.natmgr != nil {
 			h.natmgr.Close()
 		}
-		cancel()
 		return h.Network().Close()
 	})
 

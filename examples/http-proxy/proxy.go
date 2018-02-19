@@ -31,7 +31,7 @@ const Protocol = "/proxy-example/0.0.1"
 // makeRandomHost creates a libp2p host with a randomly generated identity.
 // This step is described in depth in other tutorials.
 func makeRandomHost(port int) host.Host {
-	host, err := libp2p.New(context.Background(), libp2p.ListenAddrStrings(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", port)))
+	host, err := libp2p.New(libp2p.ListenAddrStrings(fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", port)))
 	if err != nil {
 		log.Fatalln(err)
 	}
