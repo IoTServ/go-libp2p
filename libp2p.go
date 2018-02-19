@@ -17,9 +17,11 @@ import (
 	yamux "github.com/whyrusleeping/go-smux-yamux"
 )
 
+// Option is a libp2p config option that can be given to the libp2p constructor
+// (`libp2p.New`).
 type Option func(cfg *config.Config) error
 
-// Chain chains multiple options into a single option.
+// ChainOptions chains multiple options into a single option.
 func ChainOptions(opts ...Option) Option {
 	return func(cfg *config.Config) error {
 		for _, opt := range opts {
@@ -31,6 +33,8 @@ func ChainOptions(opts ...Option) Option {
 	}
 }
 
+// ListenAddrStrings configures libp2p to listen on the given (unparsed)
+// addresses.
 func ListenAddrStrings(s ...string) Option {
 	return func(cfg *config.Config) error {
 		for _, addrstr := range s {
@@ -44,6 +48,7 @@ func ListenAddrStrings(s ...string) Option {
 	}
 }
 
+// ListenAddrs configures libp2p to listen on the given addresses.
 func ListenAddrs(addrs ...ma.Multiaddr) Option {
 	return func(cfg *config.Config) error {
 		cfg.ListenAddrs = append(cfg.ListenAddrs, addrs...)
@@ -51,8 +56,14 @@ func ListenAddrs(addrs ...ma.Multiaddr) Option {
 	}
 }
 
-var DefaultSecurity Option = Security(secio.ID, secio.New)
+// DefaultSecurity is the default security option.
+//
+// Useful when you want to extend, but not replace, the supported transport
+// security protocols.
+var DefaultSecurity = Security(secio.ID, secio.New)
 
+// NoSecurity is an option that completely disables all transport security.
+// It's incompatible with all other transport security protocols.
 var NoSecurity Option = func(cfg *config.Config) error {
 	if len(cfg.SecurityTransports) > 0 {
 		return fmt.Errorf("cannot use security transports with an insecure libp2p configuration")
@@ -61,6 +72,19 @@ var NoSecurity Option = func(cfg *config.Config) error {
 	return nil
 }
 
+// Security configures libp2p to use the given security transport (or transport
+// constructor).
+//
+// Name is the protocol name.
+//
+// The transport can be a constructed security.Transport or a function taking
+// any subset of this libp2p node's:
+// * Public key
+// * Private key
+// * Peer ID
+// * Host
+// * Network
+// * Peerstore
 func Security(name string, tpt interface{}) Option {
 	return func(cfg *config.Config) error {
 		if cfg.Insecure {
@@ -68,27 +92,57 @@ func Security(name string, tpt interface{}) Option {
 		}
 		stpt, err := config.SecurityConstructor(tpt)
 		if err == nil {
-			cfg.SecurityTransports = append(cfg.SecurityTransports, config.MsSecC{stpt, name})
+			cfg.SecurityTransports = append(cfg.SecurityTransports, config.MsSecC{SecC: stpt, ID: name})
 		}
 		return err
 	}
 }
 
-var DefaultMuxer Option = ChainOptions(
+// DefaultMuxer configures libp2p to use the stream connection multiplexers.
+//
+// Use this option when you want to *extend* the set of multiplexers used by
+// libp2p instead of replacing them.
+var DefaultMuxer = ChainOptions(
 	Muxer("/yamux/1.0.0", yamux.DefaultTransport),
 	Muxer("/mplex/6.3.0", mplex.DefaultTransport),
 )
 
+// Muxer configures libp2p to use the given stream multiplexer (or stream
+// multiplexer constructor).
+//
+// Name is the protocol name.
+//
+// The transport can be a constructed mux.Transport or a function taking any
+// subset of this libp2p node's:
+// * Peer ID
+// * Host
+// * Network
+// * Peerstore
 func Muxer(name string, tpt interface{}) Option {
 	return func(cfg *config.Config) error {
 		mtpt, err := config.MuxerConstructor(tpt)
 		if err == nil {
-			cfg.Muxers = append(cfg.Muxers, config.MsMuxC{mtpt, name})
+			cfg.Muxers = append(cfg.Muxers, config.MsMuxC{MuxC: mtpt, ID: name})
 		}
 		return err
 	}
 }
 
+// Transport configures libp2p to use the given transport (or transport
+// constructor).
+//
+// The transport can be a constructed transport.Transport or a function taking
+// any subset of this libp2p node's:
+// * Transport Upgrader (*tptu.Upgrader)
+// * Host
+// * Stream muxer (muxer.Transport)
+// * Security transport (security.Transport)
+// * Private network protector (pnet.Protector)
+// * Peer ID
+// * Private Key
+// * Public Key
+// * Address filter (filter.Filter)
+// * Peerstore
 func Transport(tpt interface{}) Option {
 	return func(cfg *config.Config) error {
 		tptc, err := config.TransportConstructor(tpt)
@@ -99,6 +153,7 @@ func Transport(tpt interface{}) Option {
 	}
 }
 
+// Peerstore configures libp2p to use the given peerstore.
 func Peerstore(ps pstore.Peerstore) Option {
 	return func(cfg *config.Config) error {
 		if cfg.Peerstore != nil {
@@ -110,6 +165,7 @@ func Peerstore(ps pstore.Peerstore) Option {
 	}
 }
 
+// PrivateNetwork configures libp2p to use the given private network protector.
 func PrivateNetwork(prot pnet.Protector) Option {
 	return func(cfg *config.Config) error {
 		if cfg.Protector != nil {
@@ -121,6 +177,7 @@ func PrivateNetwork(prot pnet.Protector) Option {
 	}
 }
 
+// BandwidthReporter configures libp2p to use the given bandwidth reporter.
 func BandwidthReporter(rep metrics.Reporter) Option {
 	return func(cfg *config.Config) error {
 		if cfg.Reporter != nil {
@@ -132,6 +189,7 @@ func BandwidthReporter(rep metrics.Reporter) Option {
 	}
 }
 
+// Identity configures libp2p to use the given private key to identify itself.
 func Identity(sk crypto.PrivKey) Option {
 	return func(cfg *config.Config) error {
 		if cfg.PeerKey != nil {
@@ -143,6 +201,9 @@ func Identity(sk crypto.PrivKey) Option {
 	}
 }
 
+// New constructs a new libp2p node with the given options.
+//
+// Canceling the passed context will stop the returned libp2p node.
 func New(ctx context.Context, opts ...Option) (host.Host, error) {
 	var cfg config.Config
 	for _, opt := range opts {

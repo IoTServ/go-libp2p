@@ -11,9 +11,11 @@ import (
 	secio "github.com/libp2p/go-libp2p-secio"
 )
 
-// Security Transport Constructor
+// SecC is a security transport constructor
 type SecC func(h host.Host) (security.Transport, error)
 
+// MsSecC is a tuple containing a security transport constructor and a protocol
+// ID.
 type MsSecC struct {
 	SecC
 	ID string
@@ -49,6 +51,8 @@ var securityArgTypes = []struct {
 	},
 }
 
+// SecurityConstructor creates a security constructor from the passed parameter
+// using reflection.
 func SecurityConstructor(sec interface{}) (SecC, error) {
 	// Already constructed?
 	if t, ok := sec.(security.Transport); ok {

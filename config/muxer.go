@@ -14,7 +14,8 @@ import (
 // MuxC is a stream multiplex transport constructor
 type MuxC func(h host.Host) (mux.Transport, error)
 
-// MsMuxC is a MuxC with a protocol ID
+// MsMuxC is a tuple containing a multiplex transport constructor and a protocol
+// ID.
 type MsMuxC struct {
 	MuxC
 	ID string
@@ -37,28 +38,22 @@ var muxArgTypes = []struct {
 		New:  func(h host.Host) interface{} { return h.ID() },
 	},
 	{
-		Type: privKeyType,
-		New:  func(h host.Host) interface{} { return h.Peerstore().PrivKey(h.ID()) },
-	},
-	{
-		Type: pubKeyType,
-		New:  func(h host.Host) interface{} { return h.Peerstore().PubKey(h.ID()) },
-	},
-	{
 		Type: pstoreType,
 		New:  func(h host.Host) interface{} { return h.Peerstore() },
 	},
 }
 
-func MuxerConstructor(sec interface{}) (MuxC, error) {
+// MuxerConstructor creates a multiplex constructor from the passed parameter
+// using reflection.
+func MuxerConstructor(m interface{}) (MuxC, error) {
 	// Already constructed?
-	if t, ok := sec.(mux.Transport); ok {
+	if t, ok := m.(mux.Transport); ok {
 		return func(_ host.Host) (mux.Transport, error) {
 			return t, nil
 		}, nil
 	}
 
-	v := reflect.ValueOf(sec)
+	v := reflect.ValueOf(m)
 	t := v.Type()
 	if t.Kind() != reflect.Func {
 		return nil, fmt.Errorf("expected a transport constructor (function) or a transport")

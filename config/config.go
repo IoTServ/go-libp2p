@@ -33,6 +33,7 @@ type Config struct {
 	Insecure           bool
 }
 
+// NewNode constructs a new libp2p Host based from the Config.
 func (cfg *Config) NewNode(ctx context.Context) (host.Host, error) {
 	// If no key was given, generate a random 2048 bit RSA key
 	privKey := cfg.PeerKey
@@ -58,6 +59,7 @@ func (cfg *Config) NewNode(ctx context.Context) (host.Host, error) {
 	ps.AddPrivKey(pid, cfg.PeerKey)
 	ps.AddPubKey(pid, cfg.PeerKey.GetPublic())
 
+	// TODO: Make the swarm implementation configurable.
 	swrm := swarm.NewSwarm(ctx, pid, ps, cfg.Reporter)
 
 	// TODO: make host implementation configurable.
@@ -104,6 +106,9 @@ func (cfg *Config) NewNode(ctx context.Context) (host.Host, error) {
 		h.Close()
 		return nil, err
 	}
+
+	// TODO: Configure routing (it's a pain to setup).
+	// TODO: Bootstrapping.
 
 	return h, nil
 }
