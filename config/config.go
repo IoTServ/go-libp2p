@@ -6,6 +6,7 @@ import (
 
 	bhost "github.com/libp2p/go-libp2p/p2p/host/basic"
 
+	goprocessctx "github.com/jbenet/goprocess/context"
 	circuit "github.com/libp2p/go-libp2p-circuit"
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	host "github.com/libp2p/go-libp2p-host"
@@ -35,10 +36,6 @@ type Config struct {
 
 // NewNode constructs a new libp2p Host based from the Config.
 func (cfg *Config) NewNode() (host.Host, error) {
-	// Don't make this configurable, we need to remove it anyways:
-	// https://github.com/libp2p/go-libp2p-swarm/issues/59
-	ctx := context.Background()
-
 	// If no key was given, generate a random 2048 bit RSA key
 	privKey := cfg.PeerKey
 	if cfg.PeerKey == nil {
@@ -64,7 +61,7 @@ func (cfg *Config) NewNode() (host.Host, error) {
 	ps.AddPubKey(pid, cfg.PeerKey.GetPublic())
 
 	// TODO: Make the swarm implementation configurable.
-	swrm := swarm.NewSwarm(ctx, pid, ps, cfg.Reporter)
+	swrm := swarm.NewSwarm(pid, ps, cfg.Reporter)
 
 	// TODO: make host implementation configurable.
 	h := bhost.New(swrm)
@@ -97,6 +94,7 @@ func (cfg *Config) NewNode() (host.Host, error) {
 	}
 
 	if cfg.Relay {
+		ctx := goprocessctx.WithProcessClosing(context.Background(), h.Network().Process())
 		err := circuit.AddRelayTransport(ctx, h, upgrader, cfg.RelayOpts...)
 		if err != nil {
 			h.Close()

@@ -136,16 +136,17 @@ a problem.
 
 	// ok that's enough setup. let's do it!
 
-	ctx := context.Background()
-	h1 := bhost.New(swarmt.GenSwarm(t, ctx))
-	h2 := bhost.New(swarmt.GenSwarm(t, ctx))
+	h1 := bhost.New(swarmt.GenSwarm(t))
+	h2 := bhost.New(swarmt.GenSwarm(t))
+	defer h1.Close()
+	defer h2.Close()
 
 	// setup receiver handler
 	h1.SetStreamHandler(protocol.TestingID, receiver)
 
 	h2pi := h2.Peerstore().PeerInfo(h2.ID())
 	log.Debugf("dialing %s", h2pi.Addrs)
-	if err := h1.Connect(ctx, h2pi); err != nil {
+	if err := h1.Connect(context.Background(), h2pi); err != nil {
 		t.Fatal("Failed to connect:", err)
 	}
 
@@ -273,16 +274,17 @@ func TestStBackpressureStreamWrite(t *testing.T) {
 	// ok let's do it!
 
 	// setup the networks
-	ctx := context.Background()
-	h1 := bhost.New(swarmt.GenSwarm(t, ctx))
-	h2 := bhost.New(swarmt.GenSwarm(t, ctx))
+	h1 := bhost.New(swarmt.GenSwarm(t))
+	h2 := bhost.New(swarmt.GenSwarm(t))
+	defer h1.Close()
+	defer h2.Close()
 
 	// setup sender handler on 1
 	h1.SetStreamHandler(protocol.TestingID, sender)
 
 	h2pi := h2.Peerstore().PeerInfo(h2.ID())
 	log.Debugf("dialing %s", h2pi.Addrs)
-	if err := h1.Connect(ctx, h2pi); err != nil {
+	if err := h1.Connect(context.Background(), h2pi); err != nil {
 		t.Fatal("Failed to connect:", err)
 	}
 

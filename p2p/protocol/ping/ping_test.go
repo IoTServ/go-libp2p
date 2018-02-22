@@ -12,12 +12,12 @@ import (
 )
 
 func TestPing(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	h1 := bhost.New(swarmt.GenSwarm(t, ctx))
-	h2 := bhost.New(swarmt.GenSwarm(t, ctx))
+	h1 := bhost.New(swarmt.GenSwarm(t))
+	h2 := bhost.New(swarmt.GenSwarm(t))
+	defer h1.Close()
+	defer h2.Close()
 
-	err := h1.Connect(ctx, pstore.PeerInfo{
+	err := h1.Connect(context.Background(), pstore.PeerInfo{
 		ID:    h2.ID(),
 		Addrs: h2.Addrs(),
 	})

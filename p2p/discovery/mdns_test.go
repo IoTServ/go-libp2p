@@ -28,8 +28,10 @@ func TestMdnsDiscovery(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	a := bhost.New(swarmt.GenSwarm(t, ctx))
-	b := bhost.New(swarmt.GenSwarm(t, ctx))
+	a := bhost.New(swarmt.GenSwarm(t))
+	b := bhost.New(swarmt.GenSwarm(t))
+	defer a.Close()
+	defer b.Close()
 
 	sa, err := NewMdnsService(ctx, a, time.Second, "someTag")
 	if err != nil {

@@ -20,8 +20,10 @@ func subtestIDService(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	h1 := blhost.NewBlankHost(swarmt.GenSwarm(t, ctx))
-	h2 := blhost.NewBlankHost(swarmt.GenSwarm(t, ctx))
+	h1 := blhost.NewBlankHost(swarmt.GenSwarm(t))
+	h2 := blhost.NewBlankHost(swarmt.GenSwarm(t))
+	defer h1.Close()
+	defer h2.Close()
 
 	h1p := h1.ID()
 	h2p := h2.ID()

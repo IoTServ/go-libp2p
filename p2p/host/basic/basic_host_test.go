@@ -22,8 +22,8 @@ import (
 func TestHostSimple(t *testing.T) {
 
 	ctx := context.Background()
-	h1 := New(swarmt.GenSwarm(t, ctx))
-	h2 := New(swarmt.GenSwarm(t, ctx))
+	h1 := New(swarmt.GenSwarm(t))
+	h2 := New(swarmt.GenSwarm(t))
 	defer h1.Close()
 	defer h2.Close()
 
@@ -75,8 +75,7 @@ func TestHostAddrsFactory(t *testing.T) {
 		return []ma.Multiaddr{maddr}
 	}
 
-	ctx := context.Background()
-	h := New(swarmt.GenSwarm(t, ctx), AddrsFactory(addrsFactory))
+	h := New(swarmt.GenSwarm(t), AddrsFactory(addrsFactory))
 	defer h.Close()
 
 	addrs := h.Addrs()
@@ -89,8 +88,8 @@ func TestHostAddrsFactory(t *testing.T) {
 }
 
 func getHostPair(ctx context.Context, t *testing.T) (host.Host, host.Host) {
-	h1 := New(swarmt.GenSwarm(t, ctx))
-	h2 := New(swarmt.GenSwarm(t, ctx))
+	h1 := New(swarmt.GenSwarm(t))
+	h2 := New(swarmt.GenSwarm(t))
 
 	h2pi := h2.Peerstore().PeerInfo(h2.ID())
 	if err := h1.Connect(ctx, h2pi); err != nil {
@@ -195,8 +194,10 @@ func TestHostProtoPreknowledge(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	h1 := New(swarmt.GenSwarm(t, ctx))
-	h2 := New(swarmt.GenSwarm(t, ctx))
+	h1 := New(swarmt.GenSwarm(t))
+	h2 := New(swarmt.GenSwarm(t))
+	defer h1.Close()
+	defer h2.Close()
 
 	conn := make(chan protocol.ID)
 	handler := func(s inet.Stream) {
@@ -360,7 +361,7 @@ func TestAddrResolution(t *testing.T) {
 	}
 	resolver := &madns.Resolver{Backend: backend}
 
-	h := New(swarmt.GenSwarm(t, ctx), resolver)
+	h := New(swarmt.GenSwarm(t), resolver)
 	defer h.Close()
 
 	pi, err := pstore.InfoFromP2pAddr(p2paddr1)

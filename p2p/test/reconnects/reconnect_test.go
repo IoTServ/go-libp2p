@@ -101,9 +101,10 @@ func newSender() (chan sendChans, func(s inet.Stream)) {
 
 // TestReconnect tests whether hosts are able to disconnect and reconnect.
 func TestReconnect2(t *testing.T) {
-	ctx := context.Background()
-	h1 := bhost.New(swarmt.GenSwarm(t, ctx))
-	h2 := bhost.New(swarmt.GenSwarm(t, ctx))
+	h1 := bhost.New(swarmt.GenSwarm(t))
+	h2 := bhost.New(swarmt.GenSwarm(t))
+	defer h1.Close()
+	defer h2.Close()
 	hosts := []host.Host{h1, h2}
 
 	h1.SetStreamHandler(protocol.TestingID, EchoStreamHandler)
@@ -121,19 +122,13 @@ func TestReconnect2(t *testing.T) {
 
 // TestReconnect tests whether hosts are able to disconnect and reconnect.
 func TestReconnect5(t *testing.T) {
-	ctx := context.Background()
-	h1 := bhost.New(swarmt.GenSwarm(t, ctx))
-	h2 := bhost.New(swarmt.GenSwarm(t, ctx))
-	h3 := bhost.New(swarmt.GenSwarm(t, ctx))
-	h4 := bhost.New(swarmt.GenSwarm(t, ctx))
-	h5 := bhost.New(swarmt.GenSwarm(t, ctx))
-	hosts := []host.Host{h1, h2, h3, h4, h5}
-
-	h1.SetStreamHandler(protocol.TestingID, EchoStreamHandler)
-	h2.SetStreamHandler(protocol.TestingID, EchoStreamHandler)
-	h3.SetStreamHandler(protocol.TestingID, EchoStreamHandler)
-	h4.SetStreamHandler(protocol.TestingID, EchoStreamHandler)
-	h5.SetStreamHandler(protocol.TestingID, EchoStreamHandler)
+	hosts := make([]host.Host, 5)
+	for i := range hosts {
+		h := bhost.New(swarmt.GenSwarm(t))
+		defer h.Close()
+		hosts[i] = h
+		h.SetStreamHandler(protocol.TestingID, EchoStreamHandler)
+	}
 
 	rounds := 4
 	if testing.Short() {
